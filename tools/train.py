@@ -8,7 +8,7 @@ import warnings
 import mmcv
 import torch
 from mmcv import Config, DictAction
-from mmcv.runner import init_dist
+from mmcv.runner import get_dist_info, init_dist
 from mmcv.utils import get_git_hash
 
 from mmdet import __version__
@@ -18,7 +18,38 @@ from mmdet.models import build_detector
 from mmdet.utils import collect_env, get_root_logger
 
 
+class TrainParams:
+    def __init__(self):
+        self.config = 'configs\\mask_rcnn\\mask_rcnn_r50_fpn_1x_sk.py'
+        self.work_dir = 'work_dir'  # the dir to save logs and models
+        self.resume_from = None  # the checkpoint file to resume from
+        self.no_validate = False  # 'whether not to evaluate during training
+        self.gpus = None
+        self.gpu_ids = None
+        self.seed = None  # random seed
+        self.deterministic = False  # whether to set deterministic options for CUDNN backend.
+        self.options = None  # override some settings in the used config
+        self.cfg_options = None  # override some settings in the used config
+        self.launcher = 'none'  # one of ['none', 'pytorch', 'slurm', 'mpi'], job launcher
+        self.local_rank = 0
+
+
 def parse_args():
+    args = TrainParams()
+    if 'LOCAL_RANK' not in os.environ:
+        os.environ['LOCAL_RANK'] = str(args.local_rank)
+
+    if args.options and args.cfg_options:
+        raise ValueError(
+            '--options and --cfg-options cannot be both '
+            'specified, --options is deprecated in favor of --cfg-options')
+    if args.options:
+        warnings.warn('--options is deprecated in favor of --cfg-options')
+        args.cfg_options = args.options
+    return args
+
+
+def old_parse_args():  # 原始代码
     parser = argparse.ArgumentParser(description='Train a detector')
     parser.add_argument('config', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
@@ -57,7 +88,11 @@ def parse_args():
         nargs='+',
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file.')
+        'in xxx=yyy format will be merged into config file. If the value to '
+        'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
+        'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
+        'Note that the quotation marks are necessary and that no white space '
+        'is allowed.')
     parser.add_argument(
         '--launcher',
         choices=['none', 'pytorch', 'slurm', 'mpi'],
@@ -114,6 +149,9 @@ def main():
     else:
         distributed = True
         init_dist(args.launcher, **cfg.dist_params)
+        # re-set gpu_ids with distributed training mode
+        _, world_size = get_dist_info()
+        cfg.gpu_ids = range(world_size)
 
     # create work_dir
     mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
@@ -149,7 +187,10 @@ def main():
     meta['exp_name'] = osp.basename(args.config)
 
     model = build_detector(
-        cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
+        cfg.model,
+        train_cfg=cfg.get('train_cfg'),
+        test_cfg=cfg.get('test_cfg'))
+    model.init_weights()
 
     datasets = [build_dataset(cfg.data.train)]
     if len(cfg.workflow) == 2:
