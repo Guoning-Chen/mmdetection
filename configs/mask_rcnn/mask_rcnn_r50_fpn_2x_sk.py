@@ -1,3 +1,5 @@
+# ============================== model =========================================
+
 model = dict(
     type='MaskRCNN',
     pretrained=None,
@@ -26,7 +28,7 @@ model = dict(
             strides=[4, 8, 16, 32, 64]),
         bbox_coder=dict(
             type='DeltaXYWHBBoxCoder',
-            target_means=[0.0, 0.0, 0.0, 0.0],
+            target_means=[.0, .0, .0, .0],
             target_stds=[1.0, 1.0, 1.0, 1.0]),
         loss_cls=dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
@@ -46,7 +48,7 @@ model = dict(
             num_classes=5,
             bbox_coder=dict(
                 type='DeltaXYWHBBoxCoder',
-                target_means=[0.0, 0.0, 0.0, 0.0],
+                target_means=[0., 0., 0., 0.],
                 target_stds=[0.1, 0.1, 0.2, 0.2]),
             reg_class_agnostic=False,
             loss_cls=dict(
@@ -65,6 +67,7 @@ model = dict(
             num_classes=80,
             loss_mask=dict(
                 type='CrossEntropyLoss', use_mask=True, loss_weight=1.0))))
+# model training and testing settings
 train_cfg = dict(
     rpn=dict(
         assigner=dict(
@@ -120,6 +123,9 @@ test_cfg = dict(
         nms=dict(type='nms', iou_threshold=0.5),
         max_per_img=100,
         mask_thr_binary=0.5))
+
+# ============================== dataset =======================================
+
 dataset_type = 'SkDataset'
 data_root = 'data/sk/'
 img_norm_cfg = dict(
@@ -129,14 +135,10 @@ train_pipeline = [
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
     dict(type='Resize', img_scale=(768, 576), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),
-    dict(
-        type='Normalize',
-        mean=[123.675, 116.28, 103.53],
-        std=[58.395, 57.12, 57.375],
-        to_rgb=True),
+    dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks'])
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),
 ]
 test_pipeline = [
     dict(type='LoadImageFromFile'),
@@ -147,102 +149,61 @@ test_pipeline = [
         transforms=[
             dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
-            dict(
-                type='Normalize',
-                mean=[123.675, 116.28, 103.53],
-                std=[58.395, 57.12, 57.375],
-                to_rgb=True),
+            dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
-            dict(type='Collect', keys=['img'])
+            dict(type='Collect', keys=['img']),
         ])
 ]
 data = dict(
     samples_per_gpu=4,
     workers_per_gpu=4,
     train=dict(
-        type='SkDataset',
-        ann_file='data/sk/train.json',
-        img_prefix='data/sk/JPEGImages/',
-        pipeline=[
-            dict(type='LoadImageFromFile'),
-            dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
-            dict(type='Resize', img_scale=(768, 576), keep_ratio=True),
-            dict(type='RandomFlip', flip_ratio=0.5),
-            dict(
-                type='Normalize',
-                mean=[123.675, 116.28, 103.53],
-                std=[58.395, 57.12, 57.375],
-                to_rgb=True),
-            dict(type='Pad', size_divisor=32),
-            dict(type='DefaultFormatBundle'),
-            dict(
-                type='Collect',
-                keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks'])
-        ]),
+        type=dataset_type,
+        ann_file=data_root + 'train.json',
+        img_prefix=data_root + 'JPEGImages/',
+        pipeline=train_pipeline),
     val=dict(
-        type='SkDataset',
-        ann_file='data/sk/val.json',
-        img_prefix='data/sk/JPEGImages/',
-        pipeline=[
-            dict(type='LoadImageFromFile'),
-            dict(
-                type='MultiScaleFlipAug',
-                img_scale=(768, 576),
-                flip=False,
-                transforms=[
-                    dict(type='Resize', keep_ratio=True),
-                    dict(type='RandomFlip'),
-                    dict(
-                        type='Normalize',
-                        mean=[123.675, 116.28, 103.53],
-                        std=[58.395, 57.12, 57.375],
-                        to_rgb=True),
-                    dict(type='Pad', size_divisor=32),
-                    dict(type='ImageToTensor', keys=['img']),
-                    dict(type='Collect', keys=['img'])
-                ])
-        ]),
+        type=dataset_type,
+        ann_file=data_root + 'val.json',
+        img_prefix=data_root + 'JPEGImages/',
+        pipeline=test_pipeline),
     test=dict(
-        type='SkDataset',
-        ann_file='data/sk/test.json',
-        img_prefix='data/sk/JPEGImages/',
-        pipeline=[
-            dict(type='LoadImageFromFile'),
-            dict(
-                type='MultiScaleFlipAug',
-                img_scale=(768, 576),
-                flip=False,
-                transforms=[
-                    dict(type='Resize', keep_ratio=True),
-                    dict(type='RandomFlip'),
-                    dict(
-                        type='Normalize',
-                        mean=[123.675, 116.28, 103.53],
-                        std=[58.395, 57.12, 57.375],
-                        to_rgb=True),
-                    dict(type='Pad', size_divisor=32),
-                    dict(type='ImageToTensor', keys=['img']),
-                    dict(type='Collect', keys=['img'])
-                ])
-        ]))
+        type=dataset_type,
+        ann_file=data_root + 'test.json',
+        img_prefix=data_root + 'JPEGImages/',
+        pipeline=test_pipeline))
 evaluation = dict(metric=['bbox', 'segm'])
-optimizer = dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001)
+
+# ============================== schedules =====================================
+
+# optimizer
+optimizer = dict(type='SGD', lr=5E-3, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
+# learning policy
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=100,
     warmup_ratio=0.02,
-    step=[8, 11])
-total_epochs = 12
-runner = dict(type='EpochBasedRunner', max_epochs=12)
+    step=[16, 22])
+total_epochs = 24
+
+# ============================== runtime =======================================
+
 checkpoint_config = dict(interval=1)
-log_config = dict(interval=10, hooks=[dict(type='TextLoggerHook')])
+# yapf:disable
+log_config = dict(
+    interval=50,
+    hooks=[
+        dict(type='TextLoggerHook'),
+        # dict(type='TensorboardLoggerHook')
+    ])
+# yapf:enable
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 load_from = 'checkpoints/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth'
 resume_from = None
 workflow = [('train', 1)]
-work_dir = 'work_dir'
-gpu_ids = range(0, 1)
+work_dir = None
+

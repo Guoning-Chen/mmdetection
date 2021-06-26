@@ -5,7 +5,7 @@ model = dict(
     pretrained=None,
     backbone=dict(
         type='ResNet',
-        depth=50,
+        depth=101,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
@@ -133,7 +133,7 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
-    dict(type='Resize', img_scale=(768, 576), keep_ratio=True),
+    dict(type='Resize', img_scale=(700, 525), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -144,7 +144,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(768, 576),
+        img_scale=(700, 525),
         flip=False,
         transforms=[
             dict(type='Resize', keep_ratio=True),
@@ -173,7 +173,7 @@ data = dict(
         ann_file=data_root + 'test.json',
         img_prefix=data_root + 'JPEGImages/',
         pipeline=test_pipeline))
-evaluation = dict(metric=['bbox', 'segm'])
+evaluation = dict(metric=['segm'])
 
 # ============================== schedules =====================================
 
