@@ -20,7 +20,7 @@ from mmdet.utils import collect_env, get_root_logger
 
 class TrainParams:
     def __init__(self):
-        self.config = 'configs\\mask_rcnn\\mask_rcnn_r101_fpn_1x_sk.py'
+        self.config = 'configs/mask_rcnn/mask_rcnn_r50_fpn_1x_sk.py'
         self.work_dir = None  # the dir to save logs and models
         self.resume_from = None  # the checkpoint file to resume from
         self.no_validate = False  # 'whether not to evaluate during training

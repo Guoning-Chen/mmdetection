@@ -178,7 +178,7 @@ evaluation = dict(metric=['bbox', 'segm'])
 # ============================== schedules =====================================
 
 # optimizer
-optimizer = dict(type='SGD', lr=5E-3, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=5E-4, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
@@ -194,7 +194,7 @@ total_epochs = 24
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=40,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')

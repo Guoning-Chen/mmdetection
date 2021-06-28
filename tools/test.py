@@ -16,7 +16,42 @@ from mmdet.datasets import (build_dataloader, build_dataset,
 from mmdet.models import build_detector
 
 
+class TestParams:
+    def __init__(self):
+        self.config = 'work_dirs/mask_rcnn_r50_fpn_1x_sk/mask_rcnn_r50_fpn_1x_sk.py'
+        self.checkpoint = 'work_dirs/mask_rcnn_r50_fpn_1x_sk/epoch_7.pth'
+        self.out = None  # output result file in pickle format
+        self.fuse_conv_bn = False  # Whether to fuse conv and bn, this will slightly increase the inference speed
+        self.format_only = False
+        self.eval = ['segm']  # evaluation metrics, "bbox", "segm", "proposal" for COCO, and "mAP", "recall" for PASCAL VOC
+        self.show = False
+        self.show_dir = 'work_dirs/mask_rcnn_r50_fpn_1x_sk/epoch12_results'
+        self.show_score_thr = 0.3  # score threshold (default: 0.3)
+        self.gpu_collect = False  # 'whether to use gpu to collect results.
+        self.tmpdir = None  # tmp directory used for collecting results from multiple workers, available when gpu-collect is not specified')
+        self.cfg_options = None # override some settings in the used config
+        self.options = None  # custom options for evaluation
+        self.eval_options = None  # custom options for evaluation
+        self.launcher = 'none'  # one of ['none', 'pytorch', 'slurm', 'mpi']
+        self.local_rank = 0
+
+
 def parse_args():
+    args = TestParams()
+    if 'LOCAL_RANK' not in os.environ:
+        os.environ['LOCAL_RANK'] = str(args.local_rank)
+
+    if args.options and args.eval_options:
+        raise ValueError(
+            '--options and --eval-options cannot be both '
+            'specified, --options is deprecated in favor of --eval-options')
+    if args.options:
+        warnings.warn('--options is deprecated in favor of --eval-options')
+        args.eval_options = args.options
+    return args
+
+
+def old_parse_args():
     parser = argparse.ArgumentParser(
         description='MMDet test (and eval) a model')
     parser.add_argument('config', help='test config file path')
@@ -203,3 +238,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # state = torch.load('work_dirs/mask_rcnn_r50_fpn_1x_sk/epoch_12.pth')
+    # pass

@@ -64,7 +64,7 @@ model = dict(
             num_convs=4,
             in_channels=256,
             conv_out_channels=256,
-            num_classes=80,
+            num_classes=5,
             loss_mask=dict(
                 type='CrossEntropyLoss', use_mask=True, loss_weight=1.0))))
 # model training and testing settings
@@ -173,7 +173,7 @@ data = dict(
         ann_file=data_root + 'test.json',
         img_prefix=data_root + 'JPEGImages/',
         pipeline=test_pipeline))
-evaluation = dict(metric=['bbox', 'segm'])
+evaluation = dict(metric=['segm'])
 
 # ============================== schedules =====================================
 
@@ -184,9 +184,9 @@ optimizer_config = dict(grad_clip=None)
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=100,
+    warmup_iters=86,
     warmup_ratio=0.02,
-    step=[8, 11])
+    step=[3, 6, 11])  # start from 0
 total_epochs = 12
 runner = dict(type='EpochBasedRunner', max_epochs=12) # Runner that runs the workflow in total max_epochs
 
