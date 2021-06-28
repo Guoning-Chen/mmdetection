@@ -15,4 +15,4 @@ except AssertionError:
 @DATASETS.register_module()
 class SkDataset(CocoDataset):
 
-    CLASSES = ('chain', 'block', 'cutting', 'sphere', 'oxide')
+    CLASSES = ('block', 'chain', 'sphere', 'cutting', 'oxide')

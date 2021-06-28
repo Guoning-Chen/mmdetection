@@ -186,7 +186,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=86,
     warmup_ratio=0.02,
-    step=[3, 6, 11])  # start from 0
+    step=[6, 11])  # start from 0
 total_epochs = 12
 runner = dict(type='EpochBasedRunner', max_epochs=12) # Runner that runs the workflow in total max_epochs
 
@@ -198,7 +198,7 @@ log_config = dict(
     interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
-        # dict(type='TensorboardLoggerHook')
+        dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
 dist_params = dict(backend='nccl')
@@ -206,5 +206,5 @@ log_level = 'INFO'
 load_from = 'checkpoints/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth'
 resume_from = None
 workflow = [('train', 1)]
-work_dir = None
+work_dir = 'work_dirs/r50_fpn_1x_sk'
 

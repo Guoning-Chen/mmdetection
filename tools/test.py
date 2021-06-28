@@ -18,15 +18,15 @@ from mmdet.models import build_detector
 
 class TestParams:
     def __init__(self):
-        self.config = 'work_dirs/mask_rcnn_r50_fpn_1x_sk/mask_rcnn_r50_fpn_1x_sk.py'
-        self.checkpoint = 'work_dirs/mask_rcnn_r50_fpn_1x_sk/epoch_7.pth'
-        self.out = None  # output result file in pickle format
+        self.config = 'work_dirs/r50_fpn_1x_sk/mask_rcnn_r50_fpn_1x_sk.py'
+        self.checkpoint = 'work_dirs/r50_fpn_1x_sk/epoch_12.pth'
+        self.out = 'work_dirs/r50_fpn_1x_sk/test_results.pkl'
         self.fuse_conv_bn = False  # Whether to fuse conv and bn, this will slightly increase the inference speed
         self.format_only = False
-        self.eval = ['segm']  # evaluation metrics, "bbox", "segm", "proposal" for COCO, and "mAP", "recall" for PASCAL VOC
+        self.eval = ['segm']  # "bbox", "segm"
         self.show = False
-        self.show_dir = 'work_dirs/mask_rcnn_r50_fpn_1x_sk/epoch12_results'
-        self.show_score_thr = 0.3  # score threshold (default: 0.3)
+        self.show_dir = 'work_dirs/r50_fpn_1x_sk/epoch12_results'
+        self.show_score_thr = 0.5  # score threshold (default: 0.3)
         self.gpu_collect = False  # 'whether to use gpu to collect results.
         self.tmpdir = None  # tmp directory used for collecting results from multiple workers, available when gpu-collect is not specified')
         self.cfg_options = None # override some settings in the used config
