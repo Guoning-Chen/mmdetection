@@ -20,17 +20,17 @@ from mmdet.utils import collect_env, get_root_logger
 
 class TrainParams:
     def __init__(self):
-        self.config = 'configs/mask_rcnn/mask_rcnn_r50_fpn_1x_sk.py'
-        self.work_dir = None  # the dir to save logs and models
-        self.resume_from = None  # the checkpoint file to resume from
-        self.no_validate = False  # 'whether not to evaluate during training
+        self.config = 'configs/mask_rcnn/mask_rcnn_r50pf_fpn_1x_sk.py'
+        self.work_dir = None
+        self.resume_from = None
+        self.no_validate = False
         self.gpus = None
         self.gpu_ids = None
         self.seed = None  # random seed
-        self.deterministic = False  # whether to set deterministic options for CUDNN backend.
+        self.deterministic = False  # set deterministic options for CUDNN backend.
         self.options = None  # override some settings in the used config
         self.cfg_options = None  # override some settings in the used config
-        self.launcher = 'none'  # one of ['none', 'pytorch', 'slurm', 'mpi'], job launcher
+        self.launcher = 'none'  # one of ['none', 'pytorch', 'slurm', 'mpi']
         self.local_rank = 0
 
 
