@@ -1,3 +1,6 @@
+_base_ = [
+    '../_base_/datasets/sk_instance.py',
+]
 # ============================== model =========================================
 
 model = dict(
@@ -6,7 +9,7 @@ model = dict(
     backbone=dict(
         type='ResNetPf',
         depth=50,
-        pf_cfg=None),
+        pf_cfg=[64, 32, 32, 128, 51, 51, 128, 256, 153, 153, 153, 153, 256, 512, 512, 512]),
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
@@ -121,59 +124,12 @@ test_cfg = dict(
 
 # ============================== dataset =======================================
 
-dataset_type = 'SkDataset'
-data_root = 'data/sk/'
-img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-train_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
-    dict(type='Resize', img_scale=(768, 576), keep_ratio=True),
-    dict(type='RandomFlip', flip_ratio=0.5),
-    dict(type='Normalize', **img_norm_cfg),
-    dict(type='Pad', size_divisor=32),
-    dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),
-]
-test_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(
-        type='MultiScaleFlipAug',
-        img_scale=(768, 576),
-        flip=False,
-        transforms=[
-            dict(type='Resize', keep_ratio=True),
-            dict(type='RandomFlip'),
-            dict(type='Normalize', **img_norm_cfg),
-            dict(type='Pad', size_divisor=32),
-            dict(type='ImageToTensor', keys=['img']),
-            dict(type='Collect', keys=['img']),
-        ])
-]
-data = dict(
-    samples_per_gpu=4,
-    workers_per_gpu=4,
-    train=dict(
-        type=dataset_type,
-        ann_file=data_root + 'train.json',
-        img_prefix=data_root + 'JPEGImages/',
-        pipeline=train_pipeline),
-    val=dict(
-        type=dataset_type,
-        ann_file=data_root + 'val.json',
-        img_prefix=data_root + 'JPEGImages/',
-        pipeline=test_pipeline),
-    test=dict(
-        type=dataset_type,
-        ann_file=data_root + 'test.json',
-        img_prefix=data_root + 'JPEGImages/',
-        pipeline=test_pipeline))
-evaluation = dict(metric=['segm'])
+# inherit from base
 
 # ============================== schedules =====================================
 
 # optimizer
-optimizer = dict(type='SGD', lr=5e-3, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=5e-4, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(

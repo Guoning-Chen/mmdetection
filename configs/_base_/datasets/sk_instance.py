@@ -1,4 +1,4 @@
-dataset_type = 'CocoDataset'
+dataset_type = 'SkDataset'
 data_root = 'data/sk/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
@@ -32,17 +32,17 @@ data = dict(
     workers_per_gpu=4,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/train.json',
+        ann_file=data_root + 'train.json',
         img_prefix=data_root + 'JPEGImages/',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/val.json',
+        ann_file=data_root + 'val.json',
         img_prefix=data_root + 'JPEGImages/',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/test.json',
+        ann_file=data_root + 'test.json',
         img_prefix=data_root + 'JPEGImages/',
         pipeline=test_pipeline))
-evaluation = dict(metric=['bbox', 'segm'])
+evaluation = dict(metric=['segm'])
