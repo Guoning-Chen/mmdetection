@@ -89,6 +89,21 @@ def plot_curve(log_dicts, args):
         plt.cla()
 
 
+def merge_plot(log_dicts, args):
+    assert len(log_dicts) == 2, 'len(log_dicts) must be exactly 2.'
+    new_dict, retrain_dict = log_dicts
+    args.json_logs.pop(-1)
+
+    # merge
+    start_epoch = len(new_dict)
+    for epoch, value in retrain_dict.items():
+        new_dict[epoch + start_epoch] = value
+
+    # plot
+    plot_curve([new_dict], args)
+
+
+# useless
 def add_plot_parser(subparsers):
     parser_plt = subparsers.add_parser(
         'plot_curve', help='parser for plotting curves')
@@ -117,6 +132,7 @@ def add_plot_parser(subparsers):
     parser_plt.add_argument('--out', type=str, default=None)
 
 
+# useless
 def add_time_parser(subparsers):
     parser_time = subparsers.add_parser(
         'cal_train_time',
@@ -133,6 +149,7 @@ def add_time_parser(subparsers):
         'the average time')
 
 
+# useless
 def parse_args():
     parser = argparse.ArgumentParser(description='Analyze Json Log')
     # currently only support plot curve and calculate average train time
@@ -141,6 +158,24 @@ def parse_args():
     add_time_parser(subparsers)
     args = parser.parse_args()
     return args
+
+
+class AnalyzeParams:
+    def __init__(self):
+        self.task = 'merge_plot'  # 'plot_curve', 'cal_train_time', 'merge_plot'
+        self.json_logs = [
+            'work_dirs/r50pf_fpn_1x_sk/20210630_162250.log.json',
+            'work_dirs/retrain_r50_pf-B/20210701_105422.log.json',
+        ]
+        self.keys = ['segm_mAP', 'segm_mAP_50']
+        self.title = 'train+retrain'
+        self.legend = ['mAP', 'AP50']
+        self.backend = None
+        self.style = 'whitegrid'  # white, dark, whitegrid, darkgrid, ticks
+        self.out = None
+
+        # cal_train_time
+        self.include_outliers = True  # include the first value of every epoch when computing
 
 
 def load_json_logs(json_logs):
@@ -164,7 +199,7 @@ def load_json_logs(json_logs):
 
 
 def main():
-    args = parse_args()
+    args = AnalyzeParams()
 
     json_logs = args.json_logs
     for json_log in json_logs:
