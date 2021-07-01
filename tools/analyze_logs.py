@@ -90,8 +90,10 @@ def plot_curve(log_dicts, args):
 
 
 def merge_plot(log_dicts, args):
+    # 将第二个的log中的数据添加到第一个log的末尾
     assert len(log_dicts) == 2, 'len(log_dicts) must be exactly 2.'
     new_dict, retrain_dict = log_dicts
+    print("merge (%s) and (%s)" % (args.json_logs[0], args.json_logs[1]))
     args.json_logs.pop(-1)
 
     # merge
@@ -167,9 +169,9 @@ class AnalyzeParams:
             'work_dirs/r50pf_fpn_1x_sk/20210630_162250.log.json',
             'work_dirs/retrain_r50_pf-B/20210701_105422.log.json',
         ]
-        self.keys = ['segm_mAP', 'segm_mAP_50']
-        self.title = 'train+retrain'
-        self.legend = ['mAP', 'AP50']
+        self.keys = ['loss']
+        self.legend = ['loss']
+        self.title = 'loss'
         self.backend = None
         self.style = 'whitegrid'  # white, dark, whitegrid, darkgrid, ticks
         self.out = None
