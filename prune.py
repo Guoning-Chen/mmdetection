@@ -9,6 +9,14 @@ from mmdet.models import build_detector
 from mmdet.models.backbones import ResNetPf
 import mmcv.runner.checkpoint as cp
 
+# used by count_time
+from tools.test import parse_args
+from mmcv import Config
+from mmcv.parallel import MMDataParallel
+from mmcv.runner import load_checkpoint
+from mmdet.apis import single_gpu_test
+from mmdet.datasets import (build_dataloader, build_dataset)
+from mmdet.models import build_detector
 
 class PruneParams:
     def __init__(self):
@@ -170,5 +178,106 @@ def print_backbone(pth_path):
         print(key, value.shape)
 
 
+def count_params(pth_path):
+    state = torch.load(pth_path)
+    params = {'backbone': 0,
+              'neck': 0,
+              'rpn_head': 0,
+              'roi_head': 0}
+    for key, value in state['state_dict'].items():
+        num_params = 1
+        for x in value.shape:
+            num_params = num_params * x
+        for part_name in params.keys():
+            if part_name in key:
+                params[part_name] += num_params
+                break
+
+    total = 0
+    for key, value in params.items():
+        total += value
+        print(key, ': ', value / 1E6, 'M')
+    print('all: ', total / 1E6, 'M')
+
+
+def count_time():
+    # //========================copy for tools/test.py========================//
+    args = parse_args()
+
+    assert args.out or args.eval or args.format_only or args.show \
+           or args.show_dir, \
+        ('Please specify at least one operation (save/eval/format/show the '
+         'results / save the results) with the argument "--out", "--eval"'
+         ', "--format-only", "--show" or "--show-dir"')
+
+    if args.eval and args.format_only:
+        raise ValueError('--eval and --format_only cannot be both specified')
+
+    if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
+        raise ValueError('The output file must be a pkl file.')
+
+    cfg = Config.fromfile(args.config)
+    if args.cfg_options is not None:
+        cfg.merge_from_dict(args.cfg_options)
+    # import modules from string list.
+    if cfg.get('custom_imports', None):
+        from mmcv.utils import import_modules_from_strings
+        import_modules_from_strings(**cfg['custom_imports'])
+    # set cudnn_benchmark
+    if cfg.get('cudnn_benchmark', False):
+        torch.backends.cudnn.benchmark = True
+    cfg.model.pretrained = None
+    if cfg.model.get('neck'):
+        if isinstance(cfg.model.neck, list):
+            for neck_cfg in cfg.model.neck:
+                if neck_cfg.get('rfp_backbone'):
+                    if neck_cfg.rfp_backbone.get('pretrained'):
+                        neck_cfg.rfp_backbone.pretrained = None
+        elif cfg.model.neck.get('rfp_backbone'):
+            if cfg.model.neck.rfp_backbone.get('pretrained'):
+                cfg.model.neck.rfp_backbone.pretrained = None
+
+    # in case the test dataset is concatenated
+    if isinstance(cfg.data.test, dict):
+        cfg.data.test.test_mode = True
+    elif isinstance(cfg.data.test, list):
+        for ds_cfg in cfg.data.test:
+            ds_cfg.test_mode = True
+
+    # //===========================end copy===================================//
+    distributed = False
+    assert args.launcher == 'none', "launcher in test.py must be 'none'"
+
+    # build the dataloader
+    samples_per_gpu = 1
+    dataset = build_dataset(cfg.data.test)
+    data_loader = build_dataloader(
+        dataset,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=cfg.data.workers_per_gpu,
+        dist=distributed,
+        shuffle=False)
+
+    # build the model and load checkpoint
+    model = build_detector(cfg.model, train_cfg=None, test_cfg=cfg.test_cfg)
+    fp16_cfg = cfg.get('fp16', None)
+    assert fp16_cfg is not None
+    checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
+
+    if 'CLASSES' in checkpoint['meta']:
+        model.CLASSES = checkpoint['meta']['CLASSES']
+    else:
+        model.CLASSES = dataset.CLASSES
+
+
+    model = MMDataParallel(model, device_ids=[0])
+
+    model.eval()
+    for i, data in enumerate(data_loader):
+        with torch.no_grad():
+            result = model(return_loss=False, rescale=True, **data)
+
+
 if __name__ == '__main__':
-    prune_mask_rcnn(args=PruneParams())
+    # prune_mask_rcnn(args=PruneParams())
+    count_params(pth_path='work_dirs/r50pf_fpn_1x_sk/pruned-B.pth')

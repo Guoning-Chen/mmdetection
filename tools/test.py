@@ -18,7 +18,7 @@ from mmdet.models import build_detector
 
 class TestParams:
     def __init__(self):
-        self.config = 'work_dirs/r50pf_fpn_1x_sk/mask_rcnn_r50pf_fpn_1x_sk.py'
+        self.config = 'work_dirs/r50_fpn_1x_sk/mask_rcnn_r50_fpn_1x_sk.py'
         self.checkpoint = 'work_dirs/r50pf_fpn_1x_sk/epoch_12.pth'
         self.out = None  # '.pkl'
         self.fuse_conv_bn = False  # Whether to fuse conv and bn, this will slightly increase the inference speed

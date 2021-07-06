@@ -11,7 +11,8 @@ except ImportError:
     raise ImportError('Please upgrade mmcv to >0.6.2')
 
 
-def parse_args():
+# useless
+def old_parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
     parser.add_argument('config', help='train config file path')
     parser.add_argument(
@@ -21,6 +22,18 @@ def parse_args():
         default=[1280, 800],
         help='input image size')
     args = parser.parse_args()
+    return args
+
+
+class FlopsParams:
+    def __init__(self):
+        # self.config = 'work_dirs/r50_fpn_1x_sk/mask_rcnn_r50_fpn_1x_sk.py'
+        self.config = 'configs/mask_rcnn/mask_rcnn_r50pf_fpn_1x_sk.py'
+        self.shape = [768, 576]
+
+
+def parse_args():
+    args = FlopsParams()
     return args
 
 
