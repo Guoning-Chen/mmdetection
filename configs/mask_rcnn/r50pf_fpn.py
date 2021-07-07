@@ -1,7 +1,15 @@
-_base_ = ['../_base_/models/mask_rcnn_r50_fpn_sk.py',
+_base_ = ['../_base_/models/mask_rcnn_r50pf_fpn_sk.py',
           '../_base_/datasets/sk_instance.py',
           '../_base_/schedules/schedule_1x.py',
           '../_base_/default_runtime.py']
+
+# //============================== model =====================================//
+model = dict(
+    backbone=dict(
+        type='ResNetPf',
+        depth=50,
+        pf_cfg=None)
+)
 
 # //============================== schedules =================================//
 # optimizer
@@ -13,11 +21,11 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=86,
     warmup_ratio=0.02,
-    step=[6, 11])  # start from 0
-total_epochs = 12
+    step=[26])  # decay lr after these epochs12, 20
+total_epochs = 48
 
 # //============================== runtime ===================================//
-checkpoint_config = dict(interval=2)
+checkpoint_config = dict(interval=12)
 # yapf:disable
 log_config = dict(
     interval=10,
