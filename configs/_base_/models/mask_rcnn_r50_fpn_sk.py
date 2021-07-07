@@ -1,12 +1,17 @@
-# ============================== model =========================================
-
+# modify num_classes from 80 to 5
+# model_setting
 model = dict(
     type='MaskRCNN',
     pretrained=None,
     backbone=dict(
-        type='ResNetPf',
+        type='ResNet',
         depth=50,
-        pf_cfg=[64, 32, 32, 128, 51, 51, 128, 256, 153, 153, 153, 153, 256, 512, 512, 512]),
+        num_stages=4,
+        out_indices=(0, 1, 2, 3),
+        frozen_stages=1,
+        norm_cfg=dict(type='BN', requires_grad=True),
+        norm_eval=True,
+        style='pytorch'),
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
@@ -118,88 +123,4 @@ test_cfg = dict(
         nms=dict(type='nms', iou_threshold=0.5),
         max_per_img=100,
         mask_thr_binary=0.5))
-
-# ============================== dataset =======================================
-
-dataset_type = 'SkDataset'
-data_root = 'data/sk/'
-img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-train_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
-    dict(type='Resize', img_scale=(768, 576), keep_ratio=True),
-    dict(type='RandomFlip', flip_ratio=0.5),
-    dict(type='Normalize', **img_norm_cfg),
-    dict(type='Pad', size_divisor=32),
-    dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),
-]
-test_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(
-        type='MultiScaleFlipAug',
-        img_scale=(768, 576),
-        flip=False,
-        transforms=[
-            dict(type='Resize', keep_ratio=True),
-            dict(type='RandomFlip'),
-            dict(type='Normalize', **img_norm_cfg),
-            dict(type='Pad', size_divisor=32),
-            dict(type='ImageToTensor', keys=['img']),
-            dict(type='Collect', keys=['img']),
-        ])
-]
-data = dict(
-    samples_per_gpu=4,
-    workers_per_gpu=4,
-    train=dict(
-        type=dataset_type,
-        ann_file=data_root + 'train.json',
-        img_prefix=data_root + 'JPEGImages/',
-        pipeline=train_pipeline),
-    val=dict(
-        type=dataset_type,
-        ann_file=data_root + 'val.json',
-        img_prefix=data_root + 'JPEGImages/',
-        pipeline=test_pipeline),
-    test=dict(
-        type=dataset_type,
-        ann_file=data_root + 'test.json',
-        img_prefix=data_root + 'JPEGImages/',
-        pipeline=test_pipeline))
-evaluation = dict(metric=['segm'])
-
-# ============================== schedules =====================================
-
-# optimizer
-optimizer = dict(type='SGD', lr=5e-3, momentum=0.9, weight_decay=0.0001)
-optimizer_config = dict(grad_clip=None)
-# learning policy
-lr_config = dict(
-    policy='step',
-    warmup='linear',
-    warmup_iters=86,
-    warmup_ratio=0.02,
-    step=[6, 11])  # start from 0
-total_epochs = 12
-runner = dict(type='EpochBasedRunner', max_epochs=12) # Runner that runs the workflow in total max_epochs
-
-# ============================== runtime =======================================
-
-checkpoint_config = dict(interval=1)
-# yapf:disable
-log_config = dict(
-    interval=10,
-    hooks=[
-        dict(type='TextLoggerHook'),
-        dict(type='TensorboardLoggerHook')
-    ])
-# yapf:enable
-dist_params = dict(backend='nccl')
-log_level = 'INFO'
-load_from = 'work_dirs/r50pf_fpn_1x_sk/pruned-B.pth'
-resume_from = None
-workflow = [('train', 1)]
-work_dir = 'work_dirs/r50pf_fpn_1x_sk'
 

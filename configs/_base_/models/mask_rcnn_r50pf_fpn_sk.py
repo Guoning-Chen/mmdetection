@@ -1,15 +1,11 @@
-_base_ = [
-    '../_base_/datasets/sk_instance.py',
-]
-# ============================== model =========================================
-
+# model_setting
 model = dict(
     type='MaskRCNN',
     pretrained=None,
     backbone=dict(
         type='ResNetPf',
         depth=50,
-        pf_cfg=[64, 32, 32, 128, 51, 51, 128, 256, 153, 153, 153, 153, 256, 512, 512, 512]),
+        pf_cfg=None),
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
@@ -26,7 +22,7 @@ model = dict(
             strides=[4, 8, 16, 32, 64]),
         bbox_coder=dict(
             type='DeltaXYWHBBoxCoder',
-            target_means=[.0, .0, .0, .0],
+            target_means=[0.0, 0.0, 0.0, 0.0],
             target_stds=[1.0, 1.0, 1.0, 1.0]),
         loss_cls=dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
@@ -46,7 +42,7 @@ model = dict(
             num_classes=5,
             bbox_coder=dict(
                 type='DeltaXYWHBBoxCoder',
-                target_means=[0., 0., 0., 0.],
+                target_means=[0.0, 0.0, 0.0, 0.0],
                 target_stds=[0.1, 0.1, 0.2, 0.2]),
             reg_class_agnostic=False,
             loss_cls=dict(
@@ -121,41 +117,4 @@ test_cfg = dict(
         nms=dict(type='nms', iou_threshold=0.5),
         max_per_img=100,
         mask_thr_binary=0.5))
-
-# ============================== dataset =======================================
-
-# inherit from base
-
-# ============================== schedules =====================================
-
-# optimizer
-optimizer = dict(type='SGD', lr=5e-4, momentum=0.9, weight_decay=0.0001)
-optimizer_config = dict(grad_clip=None)
-# learning policy
-lr_config = dict(
-    policy='step',
-    warmup='linear',
-    warmup_iters=86,
-    warmup_ratio=0.02,
-    step=[6, 11])  # start from 0
-total_epochs = 12
-runner = dict(type='EpochBasedRunner', max_epochs=12) # Runner that runs the workflow in total max_epochs
-
-# ============================== runtime =======================================
-
-checkpoint_config = dict(interval=1)
-# yapf:disable
-log_config = dict(
-    interval=10,
-    hooks=[
-        dict(type='TextLoggerHook'),
-        dict(type='TensorboardLoggerHook')
-    ])
-# yapf:enable
-dist_params = dict(backend='nccl')
-log_level = 'INFO'
-load_from = 'work_dirs/r50pf_fpn_1x_sk/pruned-B.pth'
-resume_from = None
-workflow = [('train', 1)]
-work_dir = 'work_dirs/r50pf_fpn_1x_sk'
 

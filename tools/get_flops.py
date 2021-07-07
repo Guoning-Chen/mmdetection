@@ -28,7 +28,8 @@ def old_parse_args():
 class FlopsParams:
     def __init__(self):
         # self.config = 'work_dirs/r50_fpn_1x_sk/mask_rcnn_r50_fpn_1x_sk.py'
-        self.config = 'configs/mask_rcnn/mask_rcnn_r50pf_fpn_1x_sk.py'
+        # self.config = 'configs/mask_rcnn/mask_rcnn_r50pf_fpn_1x_sk.py'
+        self.config = 'configs/mask_rcnn/mask_rcnn_r50pf-B_fpn_1x_sk.py'
         self.shape = [768, 576]
 
 

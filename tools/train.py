@@ -20,8 +20,8 @@ from mmdet.utils import collect_env, get_root_logger
 
 class TrainParams:
     def __init__(self):
-        self.config = 'configs/mask_rcnn/retrain_r50pf_fpn_1x_sk.py'
-        self.work_dir = 'work_dirs/retrain_r50_pf-B'
+        self.config = 'configs/mask_rcnn/retrain_r50B_fpn.py'
+        self.work_dir = 'work_dirs/retrain_r50B_fpn_ep18'
         self.resume_from = None
         self.no_validate = False
         self.gpus = None
