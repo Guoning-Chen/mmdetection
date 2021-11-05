@@ -1,15 +1,10 @@
-_base_ = ['../_base_/models/mask_rcnn_r50pf_fpn_sk.py',
+_base_ = ['../_base_/models/mask_rcnn_r50_fpn_sk.py',
           '../_base_/datasets/sk_instance.py',
           '../_base_/schedules/schedule_1x.py',
           '../_base_/default_runtime.py']
 
-# //============================== model =====================================//
-model = dict(
-    backbone=dict(
-        type='ResNetPf',
-        depth=50,
-        pf_cfg=None)
-)
+model = dict(pretrained='torchvision://resnet101',
+             backbone=dict(depth=101))
 
 # //============================== schedules =================================//
 # optimizer
@@ -21,11 +16,11 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=86,
     warmup_ratio=0.02,
-    step=[26, 32])  # decay lr after these epochs12, 20
-total_epochs = 36
+    step=[6, 11])  # start from 0
+total_epochs = 12
 
 # //============================== runtime ===================================//
-checkpoint_config = dict(interval=12)
+checkpoint_config = dict(interval=2)
 # yapf:disable
 log_config = dict(
     interval=10,
@@ -34,5 +29,5 @@ log_config = dict(
         dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
-load_from = 'checkpoints/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth'
+load_from = 'checkpoints/mask_rcnn_r101_fpn_1x_coco_20200204-1efe0ed5.pth'
 

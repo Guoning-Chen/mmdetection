@@ -84,19 +84,34 @@ class BottleneckPf(nn.Module):
             cfg: (int).
         """
         super(BottleneckPf, self).__init__()
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
-        width = int(planes * (base_width / 64.)) * groups
-        # Both self.conv2 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = conv1x1(inplanes, cfg)
-        self.bn1 = norm_layer(cfg)
-        self.conv2 = conv3x3(cfg, width, stride, groups, dilation)
-        self.bn2 = norm_layer(width)
-        self.conv3 = conv1x1(width, planes * self.expansion)
-        self.bn3 = norm_layer(planes * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
+
+        # 默认的初始化(pytorch原始)
+        if (cfg is None) | (len(cfg) == 0):
+            if norm_layer is None:
+                norm_layer = nn.BatchNorm2d
+            width = int(planes * (base_width / 64.)) * groups
+            self.conv1 = conv1x1(inplanes, width)
+            self.bn1 = norm_layer(width)
+            self.conv2 = conv3x3(width, width, stride, groups, dilation)
+            self.bn2 = norm_layer(width)
+            self.conv3 = conv1x1(width, planes * self.expansion)
+            self.bn3 = norm_layer(planes * self.expansion)
+            self.relu = nn.ReLU(inplace=True)
+            self.downsample = downsample
+            self.stride = stride
+        else:
+            assert len(cfg) == 3, "Wrong cfg!"
+            if norm_layer is None:
+                norm_layer = nn.BatchNorm2d
+            self.conv1 = conv1x1(inplanes, cfg[0])
+            self.bn1 = norm_layer(cfg[0])
+            self.conv2 = conv3x3(cfg[0], cfg[1], stride, groups, dilation)
+            self.bn2 = norm_layer(cfg[1])
+            self.conv3 = conv1x1(cfg[1], cfg[2])
+            self.bn3 = norm_layer(cfg[2])
+            self.relu = nn.ReLU(inplace=True)
+            self.downsample = downsample
+            self.stride = stride
 
     def forward(self, x):
         identity = x
@@ -149,18 +164,25 @@ class ResNetPf(nn.Module):
         self._norm_layer = norm_layer
 
         if pf_cfg is None:
-            pf_cfg = []
-            for i, layer in enumerate(layers):
-                pf_cfg.append([64 * (2 ** i) for _ in range(layer)])
-        else:  # list -> list of sublist
-            idx = [0]
-            for layer in layers:
-                idx.append(idx[-1]+layer)
+            # 空的三级列表
+            pf_cfg = [[[] for _ in range(layers[i])] for i in range(4)]
+        else:
+            # cfg: 一级列表 -> 三级列表
+            num_layers = 2 if isinstance(block, BasicBlock) else 3
+            assert len(pf_cfg) == sum(layers) * num_layers, "Wrong cfg length!"
+            cnt = 0
             new_cfg = []
-            for i in range(1, len(idx)):
-                new_cfg.append(pf_cfg[idx[i - 1]:idx[i]])
+            for num_blocks in layers:
+                sub_cfg = []
+                for _ in range(num_blocks):
+                    sub_sub_cfg = []
+                    for _ in range(num_layers):
+                        sub_sub_cfg.append(pf_cfg[cnt])
+                        cnt += 1
+                    sub_cfg.append(sub_sub_cfg)
+                new_cfg.append(sub_cfg)
             pf_cfg = new_cfg
-        self.cfg = pf_cfg  # list of sublist of int, [[int, int...], [...]]
+            self.cfg = pf_cfg
 
         self.inplanes = 64
         self.dilation = 1
@@ -199,7 +221,7 @@ class ResNetPf(nn.Module):
             block: (class type).
             planes: (int) num of feature maps of the output in this stage.
             blocks: (int) num of block in this stage.
-            cfg: (list of int) num of filters of the first layer of each block,
+            cfg: (list of list of int) 二级列表.
             len(cfg) == blocks.
             stride: (int).
             dilate: (bool).

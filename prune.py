@@ -18,12 +18,14 @@ from mmdet.apis import single_gpu_test
 from mmdet.datasets import (build_dataloader, build_dataset)
 from mmdet.models import build_detector
 
+
 class PruneParams:
     def __init__(self):
-        self.config = 'configs/mask_rcnn/mask_rcnn_r50pf_fpn_1x_sk.py'
-        self.checkpoint = 'work_dirs/r50pf_fpn_1x_sk/epoch_12.pth'
-        self.plan = 'B'
-        self.checkpoint_path = 'work_dirs/r50pf_fpn_1x_sk/pruned-B.pth'
+        self.config = 'configs/mask_rcnn/r101_fpn.py'
+        self.checkpoint = 'work_dirs/r101_fpn/epoch_12.pth'
+        self.backbone = 'ResNet101'
+        self.prs = '00-00-90-90'
+        self.checkpoint_path = 'work_dirs/r101_fpn/r101-prs00009090.pth'
 
 
 def prune_resnet50(net, plan):
@@ -130,6 +132,236 @@ def prune_resnet50(net, plan):
     return cfg, new_net
 
 
+def prune_resnet101(net, plan):
+    """
+        Args:
+            net: (nn.Module) ResNet101 network to be pruned.
+            plan: (str) 'A' or 'B'.
+
+        Returns:
+            (nn.Module) pruned model
+            (list of int) cfg
+        """
+    assert plan in ['A', 'B'], 'plan wrong!'
+    skip = {
+        'A': [2, 11, 20, 23, 89, 92, 95, 98],
+        'B': [2, 11, 20, 23, 89, 92, 95, 98],
+    }
+    prune_prob = {
+        'A': [0.3, 0.3, 0.3, 0.],
+        'B': [0.5, 0.6, 0.4, 0.],
+    }
+
+    layer_id = 1
+    cfg = []
+    cfg_mask = []
+    for name, m in net.named_modules():
+        if isinstance(m, nn.Conv2d) & ('downsample' not in name):
+            out_channels = m.weight.data.shape[0]
+            if layer_id in skip[plan]:
+                cfg_mask.append(torch.ones(out_channels))
+                cfg.append(out_channels)
+                layer_id += 1
+                continue
+            if layer_id % 3 == 2:  # first layer of each block
+                if layer_id <= 10:
+                    stage = 0
+                elif layer_id <= 22:
+                    stage = 1
+                elif layer_id <= 91:
+                    stage = 2
+                else:
+                    stage = 3
+                prune_prob_stage = prune_prob[plan][stage]
+                weight_copy = m.weight.data.abs().clone().cpu().numpy()
+                L1_norm = np.sum(weight_copy, axis=(1, 2, 3))
+                num_keep = int(out_channels * (1 - prune_prob_stage))
+                arg_max = np.argsort(L1_norm)
+                arg_max_rev = arg_max[::-1][:num_keep]
+                mask = torch.zeros(out_channels)
+                mask[arg_max_rev.tolist()] = 1
+                cfg_mask.append(mask)
+                cfg.append(num_keep)
+                layer_id += 1
+                continue
+            layer_id += 1
+
+    new_net = ResNetPf(depth=101, pf_cfg=cfg)
+
+    block_id = 0  # 0~len(cfg)
+    layer_id = 1  # 1~101
+    for (name0, m0), (name1, m1) in zip(net.named_modules(),
+                                        new_net.named_modules()):
+        assert name0 == name1, 'not the same modules!'
+        if isinstance(m0, nn.Conv2d) & ('downsample' not in name0):
+            if layer_id == 1:  # layer 1
+                m1.weight.data = m0.weight.data.clone()
+                layer_id += 1
+            elif layer_id % 3 == 2:  # the first layer of bottleneck block
+                mask = cfg_mask[block_id]
+                idx = np.squeeze(np.argwhere(np.asarray(mask.cpu().numpy())))
+                if idx.size == 1:
+                    idx = np.resize(idx, (1,))
+                w = m0.weight.data[idx.tolist(), :, :, :].clone()
+                m1.weight.data = w.clone()
+                block_id += 1
+                layer_id += 1
+            elif layer_id % 3 == 0:  # the second layer of bottleneck block
+                mask = cfg_mask[block_id - 1]
+                idx = np.squeeze(np.argwhere(np.asarray(mask.cpu().numpy())))
+                if idx.size == 1:
+                    idx = np.resize(idx, (1,))
+                w = m0.weight.data[:, idx.tolist(), :, :].clone()
+                m1.weight.data = w.clone()
+                layer_id += 1
+            elif layer_id % 3 == 1:  # the third layer of bottleneck block
+                m1.weight.data = m0.weight.data.clone()
+                layer_id += 1
+        elif isinstance(m0, nn.BatchNorm2d):
+            if layer_id % 3 == 0:  # BatchNorm2d behind the first layer
+                mask = cfg_mask[block_id - 1]
+                idx = np.squeeze(np.argwhere(np.asarray(mask.cpu().numpy())))
+                if idx.size == 1:
+                    idx = np.resize(idx, (1,))
+                m1.weight.data = m0.weight.data[idx.tolist()].clone()
+                m1.bias.data = m0.bias.data[idx.tolist()].clone()
+                m1.running_mean = m0.running_mean[idx.tolist()].clone()
+                m1.running_var = m0.running_var[idx.tolist()].clone()
+            else:
+                m1.weight.data = m0.weight.data.clone()
+                m1.bias.data = m0.bias.data.clone()
+                m1.running_mean = m0.running_mean.clone()
+                m1.running_var = m0.running_var.clone()
+    return cfg, new_net
+
+
+def get_mask(m: nn.Conv2d, last_mask, num_keep):
+    # 获取经过上一层剪枝后，本层剩余的权重
+    idx = np.squeeze(np.argwhere(np.asarray(last_mask.cpu().numpy()))).tolist()
+    weight_copy = m.weight.data[:, idx, :, :].abs().clone().cpu().numpy()
+
+    # 计算本层需要保留的通道
+    l1_norm = np.sum(weight_copy, axis=(1, 2, 3))  # out * 1
+    idx_increase = np.argsort(l1_norm)  # 将所有 channel按 l1_norm升序排列后的索引
+    idx_reserved = idx_increase[::-1][:num_keep]  # 取降序的前 num_keep个索引
+
+    # 生成 mask
+    out_channels = m.weight.data.shape[0]
+    mask = torch.zeros(out_channels)
+    mask[idx_reserved.tolist()] = 1  # 将待保留的 channel置 1
+
+    return mask
+
+
+def str2list(prs_str):
+    assert len(prs_str) == 11, "plan format: xx-xx-xx-xx!"
+    splits = prs_str.split('-')
+    return [float(s)/100 for s in splits]
+
+
+def prune_top2_layers(arch, net, skip_block, prs, cuda=True):
+    """
+    Args:
+        arch: (str) must be supported.
+        net: (nn.Module).
+        skip_block: (list of int) ids of blocks to skip.
+        prs: (list of float) pruning ratios of all stages.
+        num_class: (int).
+        cuda: (bool).
+
+    Returns:
+        (list of int) cfg.
+        (nn.Module) pruned model.
+    """
+    assert arch in ['ResNet50', 'ResNet101'], 'Wrong arch!'
+
+    layer_id = 1
+    cfg = []  # list of int, 长度等于 block数量
+    cfg_mask = []  # 长度 = block数量，元素为长度等于 channel数的一维 Tensor
+
+    # 由于 net.named_modules()是按顺序遍历，因此 downsample跟在 third layer之后。
+    # downsample的 layer_id 就是 third layer的 id
+    # downsample_layers = [4, 13, 25, 43]
+    skip = []
+    for block_id in skip_block:
+        skip += [2 + 3 * block_id, 3 + 3 * block_id, 4 + 3 * block_id]
+
+    for name, m in net.named_modules():
+        # 只对 Conv2d层操作
+        if not isinstance(m, nn.Conv2d):
+            continue
+        elif isinstance(m, nn.Conv2d) & ('downsample' in name):
+            continue
+
+        out_channels = m.weight.data.shape[0]
+
+        if layer_id == 1:  # layer 1
+            cfg_mask.append(torch.ones(out_channels))
+            cfg.append(out_channels)
+        elif (layer_id in skip) | (layer_id % 3 == 1):  # 需要跳过的层
+            cfg_mask.append(torch.ones(out_channels))
+            cfg.append(out_channels)
+        else:
+            stage = -1
+            layer_borders = [10, 22, 40, 49]  # 每个 stage的最右一个 layer
+            for border in layer_borders:
+                if layer_id <= border:
+                    stage = layer_borders.index(border)
+                    break
+            pr = prs[stage]
+            num_keep = int(out_channels * (1 - pr))
+            mask = get_mask(m=m, last_mask=cfg_mask[-1], num_keep=num_keep)
+            cfg_mask.append(mask)
+            cfg.append(num_keep)
+        layer_id += 1
+
+    state = {'ResNet50': 50, 'ResNet101': 101}
+    pruned_net = ResNetPf(depth=state[arch], pf_cfg=cfg)
+
+    if cuda:
+        pruned_net.cuda()
+
+    layer_id = 1
+    for (name0, m0), (name1, m1) in zip(net.named_modules(),
+                                        pruned_net.named_modules()):
+        assert name0 == name1, 'not the same modules!'
+
+        if not isinstance(m0, (nn.Conv2d, nn.BatchNorm2d, nn.Linear)):
+            continue
+        if isinstance(m0, nn.Conv2d):
+            if 'downsample' in name0:
+                m1.weight.data = m0.weight.data.clone()
+                continue
+            mask = cfg_mask[layer_id - 1]
+            if layer_id == 1:
+                last_mask = torch.ones(3)
+            else:
+                last_mask = cfg_mask[layer_id - 2]
+            idx = np.squeeze(np.argwhere(np.asarray(mask))).tolist()
+            last_idx = np.squeeze(np.argwhere(np.asarray(last_mask))).tolist()
+            w = m0.weight.data[:, last_idx, :, :].clone()
+            m1.weight.data = w[idx, :, :, :].clone()
+        elif isinstance(m0, nn.BatchNorm2d):
+            if 'downsample' in name0:
+                m1.weight.data = m0.weight.data.clone()
+                m1.bias.data = m0.bias.data.clone()
+                m1.running_mean = m0.running_mean.clone()
+                m1.running_var = m0.running_var.clone()
+                continue
+            mask = cfg_mask[layer_id - 1]
+            idx = np.squeeze(np.argwhere(np.asarray(mask))).tolist()
+            m1.weight.data = m0.weight.data[idx].clone()
+            m1.bias.data = m0.bias.data[idx].clone()
+            m1.running_mean = m0.running_mean[idx].clone()
+            m1.running_var = m0.running_var[idx].clone()
+            layer_id += 1
+        elif isinstance(m0, nn.Linear):
+            m1.weight.data = m0.weight.data.clone()
+            m1.bias.data = m0.bias.data.clone()
+
+    return cfg, pruned_net
+
+
 def prune_mask_rcnn(args: PruneParams):
     """
     Just prune without retraining.
@@ -149,15 +381,22 @@ def prune_mask_rcnn(args: PruneParams):
     checkpoint = cp.load_checkpoint(model=model, filename=args.checkpoint)
 
     num_before = sum([p.nelement() for p in model.backbone.parameters()])
-    print('Before pruning: Params num = ', num_before)
+    print('Before pruning, Backbone Params = %.2fM' % (num_before/1E6))
 
     # PRUNE FILTERS
-    pf_cfg, new_resnet50 = prune_resnet50(net=model.backbone, plan=args.plan)
-    model.backbone = new_resnet50
+    # func = {"ResNet50": prune_resnet50, "ResNet101": prune_resnet101}
+    assert args.backbone in ['ResNet50', 'ResNet101'], "Wrong backbone type!"
+    skip = {'ResNet34': [2, 8, 14, 16, 26, 28, 30, 32],
+            'ResNet50': [2, 11, 20, 23, 89, 92, 95, 98],
+            'ResNet101': [2, 11, 20, 23, 89, 92, 95, 98]}
+    pf_cfg, new_backbone = prune_top2_layers(
+        arch=args.backbone, net=model.backbone, skip_block=skip[args.backbone],
+        prs=str2list(args.prs), cuda=True)
+    model.backbone = new_backbone
 
     num_after = sum([p.nelement() for p in model.backbone.parameters()])
-    print('After  pruning: Params num = ', num_after)
-    print("Prune rate: ", (num_before - num_after) / num_before)
+    print('After  pruning: Backbone Params = %.2fM' % (num_after/1E6))
+    print("Prune rate: %.2f%%" % ((num_before-num_after)/num_before*100))
 
     # replace checkpoint['state_dict']
     checkpoint['state_dict'] = cp.weights_to_cpu(cp.get_state_dict(model))
@@ -279,5 +518,6 @@ def count_time():
 
 
 if __name__ == '__main__':
-    # prune_mask_rcnn(args=PruneParams())
-    count_params(pth_path='work_dirs/r50pf_fpn_1x_sk/pruned-B.pth')
+    prune_mask_rcnn(args=PruneParams())
+    # count_params(pth_path='work_dirs/r50_fpn_ep12/epoch_12.pth')
+    # print_backbone('work_dirs/r101_fpn/r101-pruned-B.pth')
