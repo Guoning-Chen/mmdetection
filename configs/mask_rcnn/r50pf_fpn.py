@@ -8,7 +8,11 @@ model = dict(
     backbone=dict(
         type='ResNetPf',
         depth=50,
-        pf_cfg=None)
+        pf_cfg=[64, 64, 256, 64, 64, 256, 64, 64, 256,
+                128, 128, 512, 128, 128, 512, 128, 128, 512, 128, 128, 512,
+                25, 25, 1024, 25, 25, 1024, 25, 25, 1024, 25, 25, 1024,
+                256, 256, 1024, 25, 25, 1024,
+                51, 51, 2048, 51, 51, 2048, 51, 51, 2048])
 )
 
 # //============================== schedules =================================//
@@ -21,11 +25,11 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=86,
     warmup_ratio=0.02,
-    step=[26, 32])  # decay lr after these epochs12, 20
+    step=[])  # decay lr after these epochs12, 20
 total_epochs = 36
 
 # //============================== runtime ===================================//
-checkpoint_config = dict(interval=12)
+checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
     interval=10,
@@ -34,5 +38,5 @@ log_config = dict(
         dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
-load_from = 'checkpoints/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth'
+load_from = 'work_dirs/r50_fpn/r50_prs0099.pth'
 

@@ -18,14 +18,14 @@ from mmdet.models import build_detector
 
 class TestParams:
     def __init__(self):
-        self.config = 'configs/mask_rcnn/r101pf_fpn.py'
-        self.checkpoint = 'work_dirs/r101_fpn/r101-prs00009090.pth'
+        self.config = 'work_dirs/r50_fpn/r50_fpn.py'
+        self.checkpoint = 'work_dirs/r50_fpn/epoch_12.pth'
         self.out = None  # '.pkl'
         self.fuse_conv_bn = False  # Whether to fuse conv and bn, this will slightly increase the inference speed
         self.format_only = False
         self.eval = ['segm']  # "bbox", "segm"
         self.show = False
-        self.show_dir = 'work_dirs/r101_fpn_pf0099_results'
+        self.show_dir = 'work_dirs/r50_fpn/result/before'  # 'work_dirs/r101_fpn_pf0099_results'
         self.show_score_thr = 0.5  # score threshold (default: 0.3)
         self.gpu_collect = False  # 'whether to use gpu to collect results.
         self.tmpdir = None  # tmp directory used for collecting results from multiple workers, available when gpu-collect is not specified')

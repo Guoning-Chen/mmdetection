@@ -20,7 +20,7 @@ from mmdet.utils import collect_env, get_root_logger
 
 class TrainParams:
     def __init__(self):
-        self.config = 'configs/mask_rcnn/r101pf_fpn.py'
+        self.config = 'configs/mask_rcnn/r50pf_fpn.py'
         self.work_dir = None
         self.resume_from = None
         self.no_validate = False
@@ -114,7 +114,7 @@ def old_parse_args():  # 原始代码
     return args
 
 
-def main():
+def train_man():
     args = parse_args()
 
     cfg = Config.fromfile(args.config)
@@ -216,4 +216,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    train_man()

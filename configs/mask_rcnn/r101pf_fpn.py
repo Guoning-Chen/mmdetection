@@ -21,7 +21,7 @@ model = dict(
 
 # //============================== schedules =================================//
 # optimizer
-optimizer = dict(type='SGD', lr=5e-4, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=5e-3, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
@@ -29,11 +29,11 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=86,
     warmup_ratio=0.02,
-    step=[10])
-total_epochs = 12
+    step=[20, 36])
+total_epochs = 48
 
 # //============================== runtime ===================================//
-checkpoint_config = dict(interval=4)
+checkpoint_config = dict(interval=6)
 # yapf:disable
 log_config = dict(
     interval=10,

@@ -164,16 +164,15 @@ def parse_args():
 
 class AnalyzeParams:
     def __init__(self):
-        self.task = 'merge_plot'  # 'plot_curve', 'cal_train_time', 'merge_plot'
+        self.task = 'plot_curve'  # 'plot_curve', 'cal_train_time', 'merge_plot'
         self.json_logs = [
-            'work_dirs/r50pf_fpn_1x_sk/20210630_162250.log.json',
-            'work_dirs/retrain_r50_pf-B/20210701_105422.log.json',
+            'work_dirs/r50_fpn/20210628_164405.log.json',
         ]
         self.keys = ['loss']
         self.legend = ['loss']
         self.title = 'loss'
         self.backend = None
-        self.style = 'whitegrid'  # white, dark, whitegrid, darkgrid, ticks
+        self.style = 'ticks'  # white, dark, whitegrid, darkgrid, ticks
         self.out = None
 
         # cal_train_time
