@@ -212,6 +212,14 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    dicts = load_json_logs(json_logs=[
+            'work_dirs/r50_fpn/20210628_164405.log.json',
+        ])
+    fjson = open('./mask_rcnn_loss.json', 'w')
+    losses = []
+    for key in dicts[0].keys():
+        losses += (dicts[0][key]['loss'])
+    json.dump(losses, fjson, indent=4)
+
 
 
